@@ -1,4 +1,4 @@
-package br.com.zenon.zenonfrauddetector;
+package br.com.zenon.fraud.detector;
 
 import org.springframework.boot.SpringApplication;
 import org.springframework.boot.autoconfigure.SpringBootApplication;
