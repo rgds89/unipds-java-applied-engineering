@@ -7,36 +7,50 @@ import org.springframework.boot.CommandLineRunner;
 import org.springframework.stereotype.Service;
 
 import java.io.BufferedReader;
-import java.io.FileReader;
+import java.io.FileNotFoundException;
 import java.io.IOException;
 import java.math.BigDecimal;
+import java.nio.charset.StandardCharsets;
+import java.nio.file.Files;
+import java.nio.file.Path;
 import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.List;
 
 @Service
 public class TransactionIngestorService implements CommandLineRunner {
-    private static final String PAYSIM_PATH = "data/PS_20174392719_1491204439457_log.csv";
+    private static final Path PAYSIM_PATH = Path.of("data", "PS_20174392719_1491204439457_log.csv");
+    private static final Path MODULE_RELATIVE_PAYSIM_PATH = Path.of("zenon-fraud-detector").resolve(PAYSIM_PATH);
     private static final String PAYSIM_DIVISOR = ",";
     private List<Transaction> transactions = new ArrayList<>();
     int counter = 1;
 
     @Override
     public void run(String... args) throws Exception {
-        try {
-            BufferedReader br = new BufferedReader(new FileReader(PAYSIM_PATH));
-            while (br.readLine() != null && counter <= 1000) {
-                String line = br.readLine();
+        try (BufferedReader br = Files.newBufferedReader(resolvePaysimPath(), StandardCharsets.UTF_8)) {
+            br.readLine(); // cabeçalho
+            String line;
+            while (counter <= 1000 && (line = br.readLine()) != null) {
                 String[] column = line.split(PAYSIM_DIVISOR);
                 transactions.add(newTransaction(column));
                 counter++;
             }
-            br.close();
             transactions.stream().limit(10).forEach(System.out::println);
 
         } catch (IOException e) {
             System.err.println("Erro ao ler arquivo: " + e.getMessage());
         }
+    }
+
+    private Path resolvePaysimPath() throws IOException {
+        if (Files.isRegularFile(PAYSIM_PATH)) {
+            return PAYSIM_PATH;
+        }
+        if (Files.isRegularFile(MODULE_RELATIVE_PAYSIM_PATH)) {
+            return MODULE_RELATIVE_PAYSIM_PATH;
+        }
+        throw new FileNotFoundException("Arquivo PaySim não encontrado. Verificados: "
+                + PAYSIM_PATH + " e " + MODULE_RELATIVE_PAYSIM_PATH);
     }
 
     private Transaction newTransaction(String[] column) {
