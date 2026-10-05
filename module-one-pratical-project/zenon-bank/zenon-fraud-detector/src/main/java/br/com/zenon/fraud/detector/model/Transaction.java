@@ -7,7 +7,7 @@ public record Transaction(Long setp,
                           BigDecimal amount,
                           Customer customerOrig,
                           Customer customerDest,
-                          int isFraud,
-                          int isFlaggedFraud
+                          Boolean isFraud,
+                          Boolean isFlaggedFraud
                           ) {
 }
