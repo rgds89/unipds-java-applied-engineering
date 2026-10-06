@@ -27,4 +27,12 @@ public record Transaction(Long step,
             throw new IllegalArgumentException("amount não pode ser negativo");
         }
     }
+
+    /**
+     * Compatibilidade com consumidores da versão que expunha o componente como setp.
+     */
+    @Deprecated
+    public Long setp() {
+        return step;
+    }
 }

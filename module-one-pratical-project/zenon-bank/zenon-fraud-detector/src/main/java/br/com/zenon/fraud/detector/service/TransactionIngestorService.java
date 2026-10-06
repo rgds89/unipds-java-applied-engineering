@@ -9,52 +9,117 @@ import org.springframework.stereotype.Service;
 import java.io.BufferedReader;
 import java.io.FileNotFoundException;
 import java.io.IOException;
+import java.io.InputStream;
+import java.io.InputStreamReader;
 import java.math.BigDecimal;
 import java.nio.charset.StandardCharsets;
 import java.nio.file.Files;
 import java.nio.file.Path;
 import java.util.ArrayList;
+import java.util.Arrays;
 import java.util.List;
 import java.util.Optional;
 
 @Service
 public class TransactionIngestorService implements CommandLineRunner {
-    private static final Path PAYSIM_PATH = Path.of("data", "paysim_with_bad_data.csv");
-    private static final Path MODULE_RELATIVE_PAYSIM_PATH = Path.of("zenon-fraud-detector").resolve(PAYSIM_PATH);
-    private static final String PAYSIM_DIVISOR = ",";
+    private static final String DEFAULT_RESOURCE = "data/paysim_with_bad_data.csv";
+    private static final String PATH_PROPERTY = "zenon.paysim.path";
     private static final int EXPECTED_COLUMNS = 11;
-    private final List<Transaction> transactions = new ArrayList<>();
+    private static final String[] EXPECTED_HEADER = {
+            "step", "type", "amount", "nameOrig", "oldbalanceOrg", "newbalanceOrig",
+            "nameDest", "oldbalanceDest", "newbalanceDest", "isFraud", "isFlaggedFraud"
+    };
+    private final Path inputPath;
+
+    public TransactionIngestorService() {
+        this(null);
+    }
+
+    TransactionIngestorService(Path inputPath) {
+        this.inputPath = inputPath;
+    }
 
     @Override
     public void run(String... args) throws Exception {
-        transactions.clear();
-        try (BufferedReader br = Files.newBufferedReader(resolvePaysimPath(), StandardCharsets.UTF_8)) {
-            br.readLine(); // cabeçalho
+        try (BufferedReader br = openReader()) {
+            validateHeader(br.readLine());
             String line;
+            int transactionCount = 0;
             while ((line = br.readLine()) != null) {
                 try {
-                    transactions.add(newTransaction(line.split(PAYSIM_DIVISOR, -1)));
-                } catch (RuntimeException e) {
+                    System.out.println(newTransaction(parseCsvLine(line)));
+                    transactionCount++;
+                } catch (IllegalArgumentException e) {
                     System.err.printf("Erro %s: %s%n", line, e.getMessage());
                 }
             }
-            System.out.println("Quantidade de transações: " + transactions.size());
-            transactions.forEach(System.out::println);
-
-        } catch (IOException e) {
-            System.err.println("Erro ao ler arquivo: " + e.getMessage());
+            System.out.println("Quantidade de transações: " + transactionCount);
         }
     }
 
-    private Path resolvePaysimPath() throws IOException {
-        if (Files.isRegularFile(PAYSIM_PATH)) {
-            return PAYSIM_PATH;
+    private BufferedReader openReader() throws IOException {
+        if (inputPath != null) {
+            return Files.newBufferedReader(inputPath, StandardCharsets.UTF_8);
         }
-        if (Files.isRegularFile(MODULE_RELATIVE_PAYSIM_PATH)) {
-            return MODULE_RELATIVE_PAYSIM_PATH;
+
+        String configuredPath = System.getProperty(PATH_PROPERTY);
+        if (configuredPath != null && !configuredPath.isBlank()) {
+            return Files.newBufferedReader(Path.of(configuredPath), StandardCharsets.UTF_8);
         }
-        throw new FileNotFoundException("Arquivo PaySim não encontrado. Verificados: "
-                + PAYSIM_PATH + " e " + MODULE_RELATIVE_PAYSIM_PATH);
+
+        InputStream resource = getClass().getClassLoader().getResourceAsStream(DEFAULT_RESOURCE);
+        if (resource == null) {
+            throw new FileNotFoundException("Recurso PaySim não encontrado: " + DEFAULT_RESOURCE);
+        }
+        return new BufferedReader(new InputStreamReader(resource, StandardCharsets.UTF_8));
+    }
+
+    private void validateHeader(String header) {
+        if (header == null) {
+            throw new IllegalArgumentException("cabeçalho ausente");
+        }
+        if (!Arrays.equals(parseCsvLine(header), EXPECTED_HEADER)) {
+            throw new IllegalArgumentException("cabeçalho inválido");
+        }
+    }
+
+    private String[] parseCsvLine(String line) {
+        List<String> values = new ArrayList<>();
+        StringBuilder value = new StringBuilder();
+        boolean inQuotes = false;
+        boolean closedQuote = false;
+
+        for (int index = 0; index < line.length(); index++) {
+            char current = line.charAt(index);
+            if (current == '"') {
+                if (inQuotes && index + 1 < line.length() && line.charAt(index + 1) == '"') {
+                    value.append('"');
+                    index++;
+                } else if (!inQuotes && value.isEmpty()) {
+                    inQuotes = true;
+                } else if (inQuotes) {
+                    inQuotes = false;
+                    closedQuote = true;
+                } else {
+                    throw new IllegalArgumentException("aspas inválidas");
+                }
+            } else if (current == ',' && !inQuotes) {
+                values.add(value.toString());
+                value.setLength(0);
+                closedQuote = false;
+            } else {
+                if (closedQuote && !Character.isWhitespace(current)) {
+                    throw new IllegalArgumentException("conteúdo após campo entre aspas");
+                }
+                value.append(current);
+            }
+        }
+
+        if (inQuotes) {
+            throw new IllegalArgumentException("aspas não fechadas");
+        }
+        values.add(value.toString());
+        return values.toArray(String[]::new);
     }
 
     private Transaction newTransaction(String[] column) {
@@ -107,7 +172,7 @@ public class TransactionIngestorService implements CommandLineRunner {
 
     private String required(String[] column, int index, String field) {
         return Optional.ofNullable(column)
-                .filter(values -> index < values.length)
+                .filter(values -> index >= 0 && index < values.length)
                 .map(values -> values[index])
                 .map(String::trim)
                 .filter(value -> !value.isEmpty())
@@ -115,10 +180,9 @@ public class TransactionIngestorService implements CommandLineRunner {
     }
 
     private TypeTransaction getTypeTransaction(String value) {
-        return Optional.ofNullable(value)
-                .flatMap(type -> java.util.Arrays.stream(TypeTransaction.values())
-                        .filter(candidate -> candidate.getValue().equals(type))
-                        .findFirst())
+        return Arrays.stream(TypeTransaction.values())
+                .filter(candidate -> candidate.getValue().equals(value))
+                .findFirst()
                 .orElseThrow(() -> new IllegalArgumentException("type inválido: " + value));
     }
 }

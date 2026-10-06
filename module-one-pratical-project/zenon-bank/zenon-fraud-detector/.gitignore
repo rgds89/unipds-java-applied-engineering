@@ -67,7 +67,11 @@ build/
 .DS_Store
 
 data/
+!src/main/resources/data/
+!src/main/resources/data/paysim_with_bad_data.csv
 
 .mvn
 mvnw.cmd
 mvnw
+
+_bmad-output/
