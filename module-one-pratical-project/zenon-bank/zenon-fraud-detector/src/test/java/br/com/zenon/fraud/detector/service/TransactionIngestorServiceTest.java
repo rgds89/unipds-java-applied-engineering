@@ -71,6 +71,26 @@ class TransactionIngestorServiceTest {
         assertTrue(second.stdout().contains("Quantidade de transações: 8"));
     }
 
+    @Test
+    void boundedIngestionReturnsOnlyValidTransactionsUpToTheRequestedCap(@TempDir Path tempDir) throws Exception {
+        Path csv = writeCsv(tempDir, HEADER + System.lineSeparator()
+                + "1,PAYMENT,10.00,C1,10.00,0.00,M1,0.00,0.00,0,0" + System.lineSeparator()
+                + "2,PAYMENT,-1.00,C2,10.00,0.00,M2,0.00,0.00,0,0" + System.lineSeparator()
+                + "3,CASH_OUT,20.00,C3,20.00,0.00,M3,0.00,0.00,1,0" + System.lineSeparator()
+                + "4,TRANSFER,30.00,C4,30.00,0.00,M4,0.00,0.00,1,0");
+        TransactionIngestorService service = new TransactionIngestorService(csv);
+
+        List<String> first = service.ingestTransactions(2).stream()
+                .map(transaction -> transaction.customerOrig().name())
+                .toList();
+        List<String> second = service.ingestTransactions(2).stream()
+                .map(transaction -> transaction.customerOrig().name())
+                .toList();
+
+        assertEquals(List.of("C1", "C3"), first);
+        assertEquals(first, second);
+    }
+
     private Path writeCsv(Path tempDir, String content) throws IOException {
         Path csv = tempDir.resolve("transactions.csv");
         return Files.writeString(csv, content, StandardCharsets.UTF_8);

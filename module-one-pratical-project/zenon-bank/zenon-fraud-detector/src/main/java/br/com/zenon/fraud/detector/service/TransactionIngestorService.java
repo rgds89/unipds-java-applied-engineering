@@ -3,7 +3,6 @@ package br.com.zenon.fraud.detector.service;
 import br.com.zenon.fraud.detector.model.Customer;
 import br.com.zenon.fraud.detector.model.Transaction;
 import br.com.zenon.fraud.detector.model.TypeTransaction;
-import org.springframework.boot.CommandLineRunner;
 import org.springframework.stereotype.Service;
 
 import java.io.BufferedReader;
@@ -21,9 +20,10 @@ import java.util.List;
 import java.util.Optional;
 
 @Service
-public class TransactionIngestorService implements CommandLineRunner {
+public class TransactionIngestorService {
     private static final String DEFAULT_RESOURCE = "data/paysim_with_bad_data.csv";
     private static final String PATH_PROPERTY = "zenon.paysim.path";
+    public static final int MAX_TRANSACTIONS = 50_000;
     private static final int EXPECTED_COLUMNS = 11;
     private static final String[] EXPECTED_HEADER = {
             "step", "type", "amount", "nameOrig", "oldbalanceOrg", "newbalanceOrig",
@@ -39,22 +39,34 @@ public class TransactionIngestorService implements CommandLineRunner {
         this.inputPath = inputPath;
     }
 
-    @Override
     public void run(String... args) throws Exception {
+        List<Transaction> transactions = ingestTransactions(MAX_TRANSACTIONS);
+        transactions.forEach(System.out::println);
+        System.out.println("Quantidade de transações: " + transactions.size());
+    }
+
+    /**
+     * Reads valid PaySim transactions from the selected source, up to the requested cap.
+     * Invalid rows are reported and skipped, allowing subsequent valid rows to be analyzed.
+     */
+    public List<Transaction> ingestTransactions(int limit) throws IOException {
+        if (limit < 1 || limit > MAX_TRANSACTIONS) {
+            throw new IllegalArgumentException("limit deve estar entre 1 e " + MAX_TRANSACTIONS);
+        }
+
+        List<Transaction> transactions = new ArrayList<>(limit);
         try (BufferedReader br = openReader()) {
             validateHeader(br.readLine());
             String line;
-            int transactionCount = 0;
-            while ((line = br.readLine()) != null) {
+            while (transactions.size() < limit && (line = br.readLine()) != null) {
                 try {
-                    System.out.println(newTransaction(parseCsvLine(line)));
-                    transactionCount++;
+                    transactions.add(newTransaction(parseCsvLine(line)));
                 } catch (IllegalArgumentException e) {
                     System.err.printf("Erro %s: %s%n", line, e.getMessage());
                 }
             }
-            System.out.println("Quantidade de transações: " + transactionCount);
         }
+        return List.copyOf(transactions);
     }
 
     private BufferedReader openReader() throws IOException {
