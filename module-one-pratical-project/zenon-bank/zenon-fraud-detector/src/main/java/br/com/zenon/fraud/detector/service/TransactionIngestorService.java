@@ -9,6 +9,8 @@ import org.springframework.stereotype.Service;
 import java.io.BufferedReader;
 import java.io.FileNotFoundException;
 import java.io.IOException;
+import java.io.InputStream;
+import java.io.InputStreamReader;
 import java.math.BigDecimal;
 import java.nio.charset.StandardCharsets;
 import java.nio.file.Files;
@@ -16,52 +18,171 @@ import java.nio.file.Path;
 import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.List;
+import java.util.Optional;
 
 @Service
 public class TransactionIngestorService implements CommandLineRunner {
-    private static final Path PAYSIM_PATH = Path.of("data", "PS_20174392719_1491204439457_log.csv");
-    private static final Path MODULE_RELATIVE_PAYSIM_PATH = Path.of("zenon-fraud-detector").resolve(PAYSIM_PATH);
-    private static final String PAYSIM_DIVISOR = ",";
-    private List<Transaction> transactions = new ArrayList<>();
-    int counter = 1;
+    private static final String DEFAULT_RESOURCE = "data/paysim_with_bad_data.csv";
+    private static final String PATH_PROPERTY = "zenon.paysim.path";
+    private static final int EXPECTED_COLUMNS = 11;
+    private static final String[] EXPECTED_HEADER = {
+            "step", "type", "amount", "nameOrig", "oldbalanceOrg", "newbalanceOrig",
+            "nameDest", "oldbalanceDest", "newbalanceDest", "isFraud", "isFlaggedFraud"
+    };
+    private final Path inputPath;
+
+    public TransactionIngestorService() {
+        this(null);
+    }
+
+    TransactionIngestorService(Path inputPath) {
+        this.inputPath = inputPath;
+    }
 
     @Override
     public void run(String... args) throws Exception {
-        try (BufferedReader br = Files.newBufferedReader(resolvePaysimPath(), StandardCharsets.UTF_8)) {
-            br.readLine(); // cabeçalho
+        try (BufferedReader br = openReader()) {
+            validateHeader(br.readLine());
             String line;
-            while (counter <= 1000 && (line = br.readLine()) != null) {
-                String[] column = line.split(PAYSIM_DIVISOR);
-                transactions.add(newTransaction(column));
-                counter++;
+            int transactionCount = 0;
+            while ((line = br.readLine()) != null) {
+                try {
+                    System.out.println(newTransaction(parseCsvLine(line)));
+                    transactionCount++;
+                } catch (IllegalArgumentException e) {
+                    System.err.printf("Erro %s: %s%n", line, e.getMessage());
+                }
             }
-            transactions.stream().limit(10).forEach(System.out::println);
-
-        } catch (IOException e) {
-            System.err.println("Erro ao ler arquivo: " + e.getMessage());
+            System.out.println("Quantidade de transações: " + transactionCount);
         }
     }
 
-    private Path resolvePaysimPath() throws IOException {
-        if (Files.isRegularFile(PAYSIM_PATH)) {
-            return PAYSIM_PATH;
+    private BufferedReader openReader() throws IOException {
+        if (inputPath != null) {
+            return Files.newBufferedReader(inputPath, StandardCharsets.UTF_8);
         }
-        if (Files.isRegularFile(MODULE_RELATIVE_PAYSIM_PATH)) {
-            return MODULE_RELATIVE_PAYSIM_PATH;
+
+        String configuredPath = System.getProperty(PATH_PROPERTY);
+        if (configuredPath != null && !configuredPath.isBlank()) {
+            return Files.newBufferedReader(Path.of(configuredPath), StandardCharsets.UTF_8);
         }
-        throw new FileNotFoundException("Arquivo PaySim não encontrado. Verificados: "
-                + PAYSIM_PATH + " e " + MODULE_RELATIVE_PAYSIM_PATH);
+
+        InputStream resource = getClass().getClassLoader().getResourceAsStream(DEFAULT_RESOURCE);
+        if (resource == null) {
+            throw new FileNotFoundException("Recurso PaySim não encontrado: " + DEFAULT_RESOURCE);
+        }
+        return new BufferedReader(new InputStreamReader(resource, StandardCharsets.UTF_8));
+    }
+
+    private void validateHeader(String header) {
+        if (header == null) {
+            throw new IllegalArgumentException("cabeçalho ausente");
+        }
+        if (!Arrays.equals(parseCsvLine(header), EXPECTED_HEADER)) {
+            throw new IllegalArgumentException("cabeçalho inválido");
+        }
+    }
+
+    private String[] parseCsvLine(String line) {
+        List<String> values = new ArrayList<>();
+        StringBuilder value = new StringBuilder();
+        boolean inQuotes = false;
+        boolean closedQuote = false;
+
+        for (int index = 0; index < line.length(); index++) {
+            char current = line.charAt(index);
+            if (current == '"') {
+                if (inQuotes && index + 1 < line.length() && line.charAt(index + 1) == '"') {
+                    value.append('"');
+                    index++;
+                } else if (!inQuotes && value.isEmpty()) {
+                    inQuotes = true;
+                } else if (inQuotes) {
+                    inQuotes = false;
+                    closedQuote = true;
+                } else {
+                    throw new IllegalArgumentException("aspas inválidas");
+                }
+            } else if (current == ',' && !inQuotes) {
+                values.add(value.toString());
+                value.setLength(0);
+                closedQuote = false;
+            } else {
+                if (closedQuote && !Character.isWhitespace(current)) {
+                    throw new IllegalArgumentException("conteúdo após campo entre aspas");
+                }
+                value.append(current);
+            }
+        }
+
+        if (inQuotes) {
+            throw new IllegalArgumentException("aspas não fechadas");
+        }
+        values.add(value.toString());
+        return values.toArray(String[]::new);
     }
 
     private Transaction newTransaction(String[] column) {
-        Customer customerOrig = new Customer(column[3], new BigDecimal(column[4]), new BigDecimal(column[5]));
-        Customer customerDest = new Customer(column[6], new BigDecimal(column[7]), new BigDecimal(column[8]));
-        return new Transaction(Long.valueOf(column[0]), getTypeTransaction(column[1]), new BigDecimal(column[2]), customerOrig, customerDest, "1".equals(column[9]), "1".equals(column[10]));
+        if (column.length != EXPECTED_COLUMNS) {
+            throw new IllegalArgumentException("quantidade de colunas inválida: " + column.length);
+        }
+
+        Customer customerOrig = new Customer(
+                required(column, 3, "nameOrig"),
+                nonNegativeDecimal(column, 4, "oldbalanceOrg"),
+                nonNegativeDecimal(column, 5, "newbalanceOrig"));
+        Customer customerDest = new Customer(
+                required(column, 6, "nameDest"),
+                nonNegativeDecimal(column, 7, "oldbalanceDest"),
+                nonNegativeDecimal(column, 8, "newbalanceDest"));
+
+        return new Transaction(
+                positiveStep(column, 0),
+                getTypeTransaction(required(column, 1, "type")),
+                nonNegativeDecimal(column, 2, "amount"),
+                customerOrig,
+                customerDest,
+                parseFlag(column, 9, "isFraud"),
+                parseFlag(column, 10, "isFlaggedFraud"));
     }
 
-    private TypeTransaction getTypeTransaction(String line) {
-        return Arrays.stream(TypeTransaction.values()).filter(t -> t.getValue().equals(line)).findFirst().orElse(null);
+    private Long positiveStep(String[] column, int index) {
+        long step = Long.parseLong(required(column, index, "step"));
+        if (step < 1) {
+            throw new IllegalArgumentException("step deve ser maior ou igual a 1");
+        }
+        return step;
     }
 
+    private BigDecimal nonNegativeDecimal(String[] column, int index, String field) {
+        BigDecimal value = new BigDecimal(required(column, index, field));
+        if (value.signum() < 0) {
+            throw new IllegalArgumentException(field + " não pode ser negativo");
+        }
+        return value;
+    }
 
+    private boolean parseFlag(String[] column, int index, String field) {
+        return switch (required(column, index, field)) {
+            case "0" -> false;
+            case "1" -> true;
+            default -> throw new IllegalArgumentException(field + " deve ser 0 ou 1");
+        };
+    }
+
+    private String required(String[] column, int index, String field) {
+        return Optional.ofNullable(column)
+                .filter(values -> index >= 0 && index < values.length)
+                .map(values -> values[index])
+                .map(String::trim)
+                .filter(value -> !value.isEmpty())
+                .orElseThrow(() -> new IllegalArgumentException(field + " não pode ser nulo ou vazio"));
+    }
+
+    private TypeTransaction getTypeTransaction(String value) {
+        return Arrays.stream(TypeTransaction.values())
+                .filter(candidate -> candidate.getValue().equals(value))
+                .findFirst()
+                .orElseThrow(() -> new IllegalArgumentException("type inválido: " + value));
+    }
 }
