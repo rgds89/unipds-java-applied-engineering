@@ -91,6 +91,36 @@ class TransactionIngestorServiceTest {
         assertEquals(first, second);
     }
 
+    @Test
+    void acceptsTheOneHundredThousandTransactionLimit() throws Exception {
+        TransactionIngestorService service = new TransactionIngestorService();
+
+        assertEquals(100_000, TransactionIngestorService.MAX_TRANSACTIONS);
+        assertEquals(8, service.ingestTransactions(TransactionIngestorService.MAX_TRANSACTIONS).size());
+        assertThrows(IllegalArgumentException.class,
+                () -> service.ingestTransactions(TransactionIngestorService.MAX_TRANSACTIONS + 1));
+    }
+
+    @Test
+    void ingestsOneHundredThousandValidTransactions(@TempDir Path tempDir) throws Exception {
+        StringBuilder csv = new StringBuilder(9_000_000).append(HEADER).append(System.lineSeparator());
+        for (int index = 1; index <= TransactionIngestorService.MAX_TRANSACTIONS; index++) {
+            String customerName = index == TransactionIngestorService.MAX_TRANSACTIONS ? "C1868032458" : "C" + index;
+            csv.append(index).append(",PAYMENT,10.00,").append(customerName)
+                    .append(",10.00,0.00,M").append(index).append(",0.00,0.00,0,0")
+                    .append(System.lineSeparator());
+        }
+
+        List<String> customers = new TransactionIngestorService(writeCsv(tempDir, csv.toString()))
+                .ingestTransactions(TransactionIngestorService.MAX_TRANSACTIONS)
+                .stream()
+                .map(transaction -> transaction.customerOrig().name())
+                .toList();
+
+        assertEquals(TransactionIngestorService.MAX_TRANSACTIONS, customers.size());
+        assertEquals("C1868032458", customers.getLast());
+    }
+
     private Path writeCsv(Path tempDir, String content) throws IOException {
         Path csv = tempDir.resolve("transactions.csv");
         return Files.writeString(csv, content, StandardCharsets.UTF_8);

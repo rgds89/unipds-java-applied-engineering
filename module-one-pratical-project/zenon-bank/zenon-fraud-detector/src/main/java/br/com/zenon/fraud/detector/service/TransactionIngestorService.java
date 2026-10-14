@@ -23,7 +23,7 @@ import java.util.Optional;
 public class TransactionIngestorService {
     private static final String DEFAULT_RESOURCE = "data/paysim_with_bad_data.csv";
     private static final String PATH_PROPERTY = "zenon.paysim.path";
-    public static final int MAX_TRANSACTIONS = 50_000;
+    public static final int MAX_TRANSACTIONS = 100_000;
     private static final int EXPECTED_COLUMNS = 11;
     private static final String[] EXPECTED_HEADER = {
             "step", "type", "amount", "nameOrig", "oldbalanceOrg", "newbalanceOrig",
