@@ -74,6 +74,11 @@ class DBMainTest {
         }
 
         @Override
+        public void clearTransactions() {
+            savedTransactions = List.of();
+        }
+
+        @Override
         public Optional<Transaction> findByOriginName(String originName) {
             return "C1231006815".equals(originName) ? Optional.of(EXISTING) : Optional.empty();
         }

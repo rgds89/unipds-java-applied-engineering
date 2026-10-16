@@ -70,6 +70,10 @@ public class TransactionIngestorService {
     }
 
     private BufferedReader openReader() throws IOException {
+        return openReader(inputPath);
+    }
+
+    static BufferedReader openReader(Path inputPath) throws IOException {
         if (inputPath != null) {
             return Files.newBufferedReader(inputPath, StandardCharsets.UTF_8);
         }
@@ -79,14 +83,14 @@ public class TransactionIngestorService {
             return Files.newBufferedReader(Path.of(configuredPath), StandardCharsets.UTF_8);
         }
 
-        InputStream resource = getClass().getClassLoader().getResourceAsStream(DEFAULT_RESOURCE);
+        InputStream resource = TransactionIngestorService.class.getClassLoader().getResourceAsStream(DEFAULT_RESOURCE);
         if (resource == null) {
             throw new FileNotFoundException("Recurso PaySim não encontrado: " + DEFAULT_RESOURCE);
         }
         return new BufferedReader(new InputStreamReader(resource, StandardCharsets.UTF_8));
     }
 
-    private void validateHeader(String header) {
+    static void validateHeader(String header) {
         if (header == null) {
             throw new IllegalArgumentException("cabeçalho ausente");
         }
@@ -95,7 +99,7 @@ public class TransactionIngestorService {
         }
     }
 
-    private String[] parseCsvLine(String line) {
+    static String[] parseCsvLine(String line) {
         List<String> values = new ArrayList<>();
         StringBuilder value = new StringBuilder();
         boolean inQuotes = false;
@@ -134,7 +138,11 @@ public class TransactionIngestorService {
         return values.toArray(String[]::new);
     }
 
-    private Transaction newTransaction(String[] column) {
+    static Transaction parseTransaction(String line) {
+        return newTransaction(parseCsvLine(line));
+    }
+
+    private static Transaction newTransaction(String[] column) {
         if (column.length != EXPECTED_COLUMNS) {
             throw new IllegalArgumentException("quantidade de colunas inválida: " + column.length);
         }
@@ -158,7 +166,7 @@ public class TransactionIngestorService {
                 parseFlag(column, 10, "isFlaggedFraud"));
     }
 
-    private Long positiveStep(String[] column, int index) {
+    private static Long positiveStep(String[] column, int index) {
         long step = Long.parseLong(required(column, index, "step"));
         if (step < 1) {
             throw new IllegalArgumentException("step deve ser maior ou igual a 1");
@@ -166,7 +174,7 @@ public class TransactionIngestorService {
         return step;
     }
 
-    private BigDecimal nonNegativeDecimal(String[] column, int index, String field) {
+    private static BigDecimal nonNegativeDecimal(String[] column, int index, String field) {
         BigDecimal value = new BigDecimal(required(column, index, field));
         if (value.signum() < 0) {
             throw new IllegalArgumentException(field + " não pode ser negativo");
@@ -174,7 +182,7 @@ public class TransactionIngestorService {
         return value;
     }
 
-    private boolean parseFlag(String[] column, int index, String field) {
+    private static boolean parseFlag(String[] column, int index, String field) {
         return switch (required(column, index, field)) {
             case "0" -> false;
             case "1" -> true;
@@ -182,7 +190,7 @@ public class TransactionIngestorService {
         };
     }
 
-    private String required(String[] column, int index, String field) {
+    private static String required(String[] column, int index, String field) {
         return Optional.ofNullable(column)
                 .filter(values -> index >= 0 && index < values.length)
                 .map(values -> values[index])
@@ -191,7 +199,7 @@ public class TransactionIngestorService {
                 .orElseThrow(() -> new IllegalArgumentException(field + " não pode ser nulo ou vazio"));
     }
 
-    private TypeTransaction getTypeTransaction(String value) {
+    private static TypeTransaction getTypeTransaction(String value) {
         return Arrays.stream(TypeTransaction.values())
                 .filter(candidate -> candidate.getValue().equals(value))
                 .findFirst()
