@@ -71,7 +71,7 @@ public class ZenonFraudDetectorApplication {
     }
 
     private void printSearchResult(TransactionRepository repository, String customerOrigName) {
-        repository.findByCustomerOrigName(customerOrigName)
+        repository.findByOriginName(customerOrigName)
                 .ifPresentOrElse(
                         System.out::println,
                         () -> System.out.println("Transação não encontrada para o cliente " + customerOrigName));
@@ -79,7 +79,7 @@ public class ZenonFraudDetectorApplication {
 
     private void printBenchmark(String repositoryName, TransactionRepository repository) {
         long start = System.nanoTime();
-        var transaction = repository.findByCustomerOrigName(LAST_CUSTOMER);
+        var transaction = repository.findByOriginName(LAST_CUSTOMER);
         long duration = System.nanoTime() - start;
 
         printSearchResult(transaction, LAST_CUSTOMER);
