@@ -5,5 +5,7 @@ import br.com.zenon.fraud.detector.model.Transaction;
 import java.util.Optional;
 
 public interface TransactionRepository {
-    Optional<Transaction> findByCustomerOrigName(String customerOrigName);
+    void save(Transaction transaction);
+
+    Optional<Transaction> findByOriginName(String originName);
 }

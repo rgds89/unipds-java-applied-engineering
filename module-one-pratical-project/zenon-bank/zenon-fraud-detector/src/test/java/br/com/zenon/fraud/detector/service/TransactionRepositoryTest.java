@@ -19,18 +19,18 @@ class TransactionRepositoryTest {
     @Test
     void findsTheTransactionForAnExistingCustomer() {
         forEachRepository(repository -> assertEquals(OTHER_CUSTOMER,
-                repository.findByCustomerOrigName("C2").orElseThrow()));
+                repository.findByOriginName("C2").orElseThrow()));
     }
 
     @Test
     void returnsEmptyForAnAbsentCustomer() {
-        forEachRepository(repository -> assertFalse(repository.findByCustomerOrigName("C12345").isPresent()));
+        forEachRepository(repository -> assertFalse(repository.findByOriginName("C12345").isPresent()));
     }
 
     @Test
     void preservesTheFirstTransactionForRepeatedCustomerNames() {
         forEachRepository(repository -> assertEquals(FIRST_DUPLICATE,
-                repository.findByCustomerOrigName("C1").orElseThrow()));
+                repository.findByOriginName("C1").orElseThrow()));
     }
 
     @Test
@@ -39,15 +39,39 @@ class TransactionRepositoryTest {
         List<Transaction> transactions = List.of(FIRST_DUPLICATE, SECOND_DUPLICATE, OTHER_CUSTOMER, finalTransaction);
 
         assertEquals(finalTransaction,
-                new TransactionListRepository(transactions).findByCustomerOrigName("C1868032458").orElseThrow());
+                new TransactionListRepository(transactions).findByOriginName("C1868032458").orElseThrow());
         assertEquals(finalTransaction,
-                new TransactionMapRepository(transactions).findByCustomerOrigName("C1868032458").orElseThrow());
+                new TransactionMapRepository(transactions).findByOriginName("C1868032458").orElseThrow());
+    }
+
+    @Test
+    void savesANewTransactionWithoutExposingInternalState() {
+        Transaction saved = transaction(5, "C5", "50.00");
+
+        forEachEmptyRepository(repository -> {
+            repository.save(saved);
+            assertEquals(saved, repository.findByOriginName("C5").orElseThrow());
+        });
+    }
+
+    @Test
+    void keepsTheFirstSavedTransactionForRepeatedOriginNames() {
+        forEachEmptyRepository(repository -> {
+            repository.save(FIRST_DUPLICATE);
+            repository.save(SECOND_DUPLICATE);
+            assertEquals(FIRST_DUPLICATE, repository.findByOriginName("C1").orElseThrow());
+        });
     }
 
     private void forEachRepository(java.util.function.Consumer<TransactionRepository> assertion) {
         List<Transaction> transactions = List.of(FIRST_DUPLICATE, SECOND_DUPLICATE, OTHER_CUSTOMER);
         assertion.accept(new TransactionListRepository(transactions));
         assertion.accept(new TransactionMapRepository(transactions));
+    }
+
+    private void forEachEmptyRepository(java.util.function.Consumer<TransactionRepository> assertion) {
+        assertion.accept(new TransactionListRepository(List.of()));
+        assertion.accept(new TransactionMapRepository(List.of()));
     }
 
     private static Transaction transaction(long step, String customerOrigName, String amount) {

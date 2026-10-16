@@ -17,12 +17,18 @@ public class TransactionMapRepository implements TransactionRepository {
         for (Transaction transaction : transactions) {
             indexedTransactions.putIfAbsent(transaction.customerOrig().name(), transaction);
         }
-        this.transactionsByCustomerOrigName = Map.copyOf(indexedTransactions);
+        this.transactionsByCustomerOrigName = indexedTransactions;
     }
 
     @Override
-    public Optional<Transaction> findByCustomerOrigName(String customerOrigName) {
-        Objects.requireNonNull(customerOrigName, "customerOrigName não pode ser nulo");
-        return Optional.ofNullable(transactionsByCustomerOrigName.get(customerOrigName));
+    public void save(Transaction transaction) {
+        Transaction nonNullTransaction = Objects.requireNonNull(transaction, "transaction não pode ser nula");
+        transactionsByCustomerOrigName.putIfAbsent(nonNullTransaction.customerOrig().name(), nonNullTransaction);
+    }
+
+    @Override
+    public Optional<Transaction> findByOriginName(String originName) {
+        Objects.requireNonNull(originName, "originName não pode ser nulo");
+        return Optional.ofNullable(transactionsByCustomerOrigName.get(originName));
     }
 }
