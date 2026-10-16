@@ -9,12 +9,14 @@ import java.sql.DriverManager;
 import java.sql.PreparedStatement;
 import java.sql.ResultSet;
 import java.sql.SQLException;
+import java.math.BigDecimal;
 import java.util.List;
 import java.util.Objects;
 import java.util.Optional;
 
 /** JDBC-backed transaction storage with a deliberately explicit batch API. */
 public class TransactionSQLRepository implements TransactionRepository {
+    public static final String DEFAULT_JDBC_URL = "jdbc:mysql://localhost:3307/zenon?rewriteBatchedStatements=true";
     static final String INSERT_SQL = """
             INSERT INTO transactions (
                 step, transaction_type, amount, origin_name, origin_old_balance, origin_new_balance,
@@ -28,6 +30,13 @@ public class TransactionSQLRepository implements TransactionRepository {
             WHERE origin_name = ?
             ORDER BY id
             LIMIT 1
+            """;
+    static final String CLEAR_SQL = "TRUNCATE TABLE transactions";
+    static final String LOAD_METRICS_SQL = """
+            SELECT COUNT(*) AS transaction_count,
+                   COALESCE(SUM(CASE WHEN is_fraud THEN 1 ELSE 0 END), 0) AS fraud_count,
+                   COALESCE(SUM(amount), 0) AS total_amount
+            FROM transactions
             """;
 
     private final ConnectionProvider connectionProvider;
@@ -67,6 +76,33 @@ public class TransactionSQLRepository implements TransactionRepository {
             statement.executeBatch();
         } catch (SQLException e) {
             throw new IllegalStateException("Não foi possível salvar o lote de transações no MySQL", e);
+        }
+    }
+
+    /** Removes prior benchmark or ingestion rows before a new complete load starts. */
+    public void clearTransactions() {
+        try (Connection connection = connectionProvider.getConnection();
+             PreparedStatement statement = connection.prepareStatement(CLEAR_SQL)) {
+            statement.executeUpdate();
+        } catch (SQLException e) {
+            throw new IllegalStateException("Não foi possível limpar as transações no MySQL", e);
+        }
+    }
+
+    /** Returns the aggregates used to reconcile a full streaming ingestion. */
+    public LoadMetrics loadMetrics() {
+        try (Connection connection = connectionProvider.getConnection();
+             PreparedStatement statement = connection.prepareStatement(LOAD_METRICS_SQL);
+             ResultSet resultSet = statement.executeQuery()) {
+            if (!resultSet.next()) {
+                throw new IllegalStateException("Consulta de métricas não retornou resultado");
+            }
+            return new LoadMetrics(
+                    resultSet.getLong("transaction_count"),
+                    resultSet.getLong("fraud_count"),
+                    resultSet.getBigDecimal("total_amount"));
+        } catch (SQLException e) {
+            throw new IllegalStateException("Não foi possível consultar métricas no MySQL", e);
         }
     }
 
@@ -120,5 +156,11 @@ public class TransactionSQLRepository implements TransactionRepository {
     @FunctionalInterface
     public interface ConnectionProvider {
         Connection getConnection() throws SQLException;
+    }
+
+    public record LoadMetrics(long transactionCount, long fraudCount, BigDecimal totalAmount) {
+        public LoadMetrics {
+            Objects.requireNonNull(totalAmount, "totalAmount não pode ser nulo");
+        }
     }
 }

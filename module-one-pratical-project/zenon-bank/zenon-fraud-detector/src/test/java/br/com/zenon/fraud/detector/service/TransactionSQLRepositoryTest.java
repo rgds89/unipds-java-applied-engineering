@@ -79,6 +79,19 @@ class TransactionSQLRepositoryTest {
         assertEquals("database offline", exception.getCause().getMessage());
     }
 
+    @Test
+    void clearsRowsAndReadsDatabaseLoadMetrics() {
+        RecordingJdbc jdbc = new RecordingJdbc(Optional.empty());
+        TransactionSQLRepository repository = new TransactionSQLRepository(jdbc::connection);
+
+        repository.clearTransactions();
+        TransactionSQLRepository.LoadMetrics metrics = repository.loadMetrics();
+
+        assertTrue(jdbc.preparedSql().contains(TransactionSQLRepository.CLEAR_SQL));
+        assertTrue(jdbc.preparedSql().contains(TransactionSQLRepository.LOAD_METRICS_SQL));
+        assertEquals(new TransactionSQLRepository.LoadMetrics(3, 1, new BigDecimal("30.00")), metrics);
+    }
+
     private static Transaction transaction(long step, String originName) {
         return new Transaction(step, TypeTransaction.PAYMENT, new BigDecimal("10.00"),
                 new Customer(originName, BigDecimal.ZERO, BigDecimal.ZERO),
@@ -92,6 +105,8 @@ class TransactionSQLRepositoryTest {
         private List<Object> executedUpdateParameters = List.of();
         private int executeBatchCalls;
         private String queryParameter;
+        private final TransactionSQLRepository.LoadMetrics loadMetrics =
+                new TransactionSQLRepository.LoadMetrics(3, 1, new BigDecimal("30.00"));
 
         private RecordingJdbc(Optional<Transaction> queryResult) {
             this.queryResult = queryResult;
@@ -129,6 +144,9 @@ class TransactionSQLRepositoryTest {
                         return 1;
                     }
                     case "executeQuery" -> {
+                        if (TransactionSQLRepository.LOAD_METRICS_SQL.equals(sql)) {
+                            return metricsResultSet();
+                        }
                         queryParameter = (String) parameters.get(1);
                         return resultSet();
                     }
@@ -154,6 +172,34 @@ class TransactionSQLRepositoryTest {
                     }
                     if (method.getName().startsWith("get")) {
                         return value((String) args[0]);
+                    }
+                    return defaultValue(method.getReturnType());
+                }
+            });
+        }
+
+        private ResultSet metricsResultSet() {
+            return proxy(ResultSet.class, new InvocationHandler() {
+                private boolean read;
+
+                @Override
+                public Object invoke(Object proxy, java.lang.reflect.Method method, Object[] args) {
+                    if (method.getName().equals("next")) {
+                        if (read) {
+                            return false;
+                        }
+                        read = true;
+                        return true;
+                    }
+                    if (method.getName().equals("getLong")) {
+                        return switch ((String) args[0]) {
+                            case "transaction_count" -> loadMetrics.transactionCount();
+                            case "fraud_count" -> loadMetrics.fraudCount();
+                            default -> throw new IllegalArgumentException("coluna desconhecida");
+                        };
+                    }
+                    if (method.getName().equals("getBigDecimal")) {
+                        return loadMetrics.totalAmount();
                     }
                     return defaultValue(method.getReturnType());
                 }

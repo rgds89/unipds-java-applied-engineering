@@ -19,7 +19,7 @@ public final class DBMain {
 
     public static void main(String[] args) throws IOException {
         TransactionSQLRepository repository = TransactionSQLRepository.fromConnectionProperties(
-                System.getProperty("zenon.jdbc.url", "jdbc:mysql://localhost:3307/zenon"),
+                System.getProperty("zenon.jdbc.url", TransactionSQLRepository.DEFAULT_JDBC_URL),
                 System.getProperty("zenon.jdbc.user", "zenon"),
                 System.getProperty("zenon.jdbc.password", "zenon"));
         run(new TransactionIngestorService(), repository, System.out);
@@ -30,11 +30,12 @@ public final class DBMain {
         List<Transaction> transactions = ingestor.ingestTransactions(JDBC_BATCH_LIMIT);
 
         try {
+            repository.clearTransactions();
             long start = System.nanoTime();
             repository.saveAll(transactions);
             long durationMillis = (System.nanoTime() - start) / 1_000_000;
 
-            output.printf("%d transações persistidas em lote em %d ms%n", transactions.size(), durationMillis);
+            output.printf("Tabela limpa; %d transações persistidas em lote em %d ms%n", transactions.size(), durationMillis);
             printSearch(repository, EXISTING_ORIGIN, output);
             printSearch(repository, MISSING_ORIGIN, output);
         } catch (IllegalStateException e) {
