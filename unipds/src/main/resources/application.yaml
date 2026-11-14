@@ -1,0 +1,26 @@
+quarkus:
+  openapi-generator:
+    codegen:
+      spec:
+        openapi_yml:
+          model-name-prefix: QuarkusOpenApiGenerator
+
+  datasource:
+    db-kind: postgresql
+    username: admin
+    password: admin123
+    jdbc:
+      url: jdbc:postgresql://localhost:5432/unipds
+      max-size: 16
+      telemetry: true
+
+  hibernate-orm:
+    schema-management:
+      strategy: drop-and-create
+
+mp:
+  jwt:
+    verify:
+      publickey:
+        location: https://raw.githubusercontent.com/eldermoraes/unipds/main/jwt-token/quarkus.jwt.pub
+      issuer: https://quarkus.io/using-jwt-rbac

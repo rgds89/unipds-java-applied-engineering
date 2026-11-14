@@ -1,5 +1,6 @@
 package br.com.rogersilva;
 
+import io.micrometer.core.annotation.Counted;
 import jakarta.transaction.Transactional;
 import jakarta.ws.rs.Consumes;
 import jakarta.ws.rs.DELETE;
@@ -21,6 +22,7 @@ public class PessoaResource {
     DataUtils dataUtils = new DataUtils();
 
     @GET
+    @Counted(value = "counted.getPessoa")
     public List<Pessoa> getPessoa() {
         return Pessoa.listAll();
     }
