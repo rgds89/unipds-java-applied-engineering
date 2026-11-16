@@ -1,0 +1,20 @@
+databaseChangeLog:
+  - changeSet:
+      id: 009-session-start-time-to-timestamp
+      author: roger-silva
+      dbms: postgresql
+      changes:
+        - sql:
+            sql: |
+              ALTER TABLE tbl_session
+              ALTER COLUMN start_time TYPE TIMESTAMP(6)
+              USING CASE
+                WHEN start_date IS NULL OR start_time IS NULL THEN NULL
+                ELSE start_date + start_time
+              END;
+      rollback:
+        - sql:
+            sql: |
+              ALTER TABLE tbl_session
+              ALTER COLUMN start_time TYPE TIME
+              USING start_time::time;
