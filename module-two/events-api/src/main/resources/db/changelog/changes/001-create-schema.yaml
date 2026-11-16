@@ -1,0 +1,132 @@
+databaseChangeLog:
+  - changeSet:
+      id: 001-create-tbl-user
+      author: roger-silva
+      changes:
+        - createTable:
+            tableName: tbl_user
+            columns:
+              - column:
+                  name: user_id
+                  type: INT
+                  autoIncrement: true
+                  constraints:
+                    primaryKey: true
+                    primaryKeyName: pk_tbl_user
+                    nullable: false
+              - column:
+                  name: user_name
+                  type: VARCHAR(255)
+                  constraints:
+                    nullable: false
+              - column:
+                  name: user_email
+                  type: VARCHAR(255)
+                  constraints:
+                    nullable: false
+                    unique: true
+                    uniqueConstraintName: uk_tbl_user_email
+              - column:
+                  name: user_password
+                  type: VARCHAR(255)
+                  constraints:
+                    nullable: false
+
+  - changeSet:
+      id: 002-create-tbl-conference
+      author: roger-silva
+      changes:
+        - createTable:
+            tableName: tbl_conference
+            columns:
+              - column:
+                  name: conference_id
+                  type: INT
+                  autoIncrement: true
+                  constraints:
+                    primaryKey: true
+                    primaryKeyName: pk_tbl_conference
+                    nullable: false
+              - column:
+                  name: name
+                  type: VARCHAR(100)
+                  constraints:
+                    nullable: false
+              - column:
+                  name: address
+                  type: VARCHAR(255)
+
+  - changeSet:
+      id: 003-create-tbl-session
+      author: roger-silva
+      changes:
+        - createTable:
+            tableName: tbl_session
+            columns:
+              - column:
+                  name: session_id
+                  type: INT
+                  autoIncrement: true
+                  constraints:
+                    primaryKey: true
+                    primaryKeyName: pk_tbl_session
+                    nullable: false
+              - column:
+                  name: title
+                  type: VARCHAR(255)
+                  constraints:
+                    nullable: false
+                    unique: true
+                    uniqueConstraintName: uk_tbl_session_title
+              - column:
+                  name: start_date
+                  type: DATE
+              - column:
+                  name: start_time
+                  type: TIME
+              - column:
+                  name: conference_id
+                  type: INT
+                  constraints:
+                    foreignKeyName: fk_tbl_session_conference
+                    references: tbl_conference(conference_id)
+
+  - changeSet:
+      id: 004-create-tbl-subscription
+      author: roger-silva
+      changes:
+        - createTable:
+            tableName: tbl_subscription
+            columns:
+              - column:
+                  name: user_id
+                  type: INT
+                  constraints:
+                    nullable: false
+                    foreignKeyName: fk_tbl_subscription_user
+                    references: tbl_user(user_id)
+              - column:
+                  name: session_id
+                  type: INT
+                  constraints:
+                    nullable: false
+                    foreignKeyName: fk_tbl_subscription_session
+                    references: tbl_session(session_id)
+              - column:
+                  name: created_at
+                  type: TIMESTAMP
+                  defaultValueComputed: CURRENT_TIMESTAMP
+              - column:
+                  name: level
+                  type: INT
+              - column:
+                  name: unique_id
+                  type: VARCHAR(45)
+                  constraints:
+                    nullable: false
+                    unique: true
+                    uniqueConstraintName: uk_tbl_subscription_unique_id
+        - addPrimaryKey:
+            tableName: tbl_subscription
+            columnNames: user_id, session_id
+            constraintName: pk_tbl_subscription

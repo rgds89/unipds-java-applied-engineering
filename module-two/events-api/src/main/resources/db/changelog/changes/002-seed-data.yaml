@@ -1,0 +1,233 @@
+databaseChangeLog:
+  - changeSet:
+      id: 005-seed-tbl-user
+      author: roger-silva
+      changes:
+        - insert:
+            tableName: tbl_user
+            columns:
+              - column:
+                  name: user_name
+                  value: Márcio
+              - column:
+                  name: user_email
+                  value: mpbmarcio@hotmail.com
+              - column:
+                  name: user_password
+                  value: '$2a$10$jC/ktwUTyxj.ccndf1qFqOz0IMrPakZHy0q7eOMR/1jCUy4z1ZRZq'
+        - insert:
+            tableName: tbl_user
+            columns:
+              - column:
+                  name: user_name
+                  value: Ana Souza
+              - column:
+                  name: user_email
+                  value: ana.souza@example.com
+              - column:
+                  name: user_password
+                  value: '$2a$10$wz7BkbdHvSvCCDhmMp1G6uDmhVbbz11dGmHZKoCeoFR9JN7y0RH8.'
+        - insert:
+            tableName: tbl_user
+            columns:
+              - column:
+                  name: user_name
+                  value: Carlos Pereira
+              - column:
+                  name: user_email
+                  value: carlos.pereira@example.com
+              - column:
+                  name: user_password
+                  value: '$2a$10$aLqHlDdGzO4UTYVJ6Kv28.o8pR4VO8ZcrBl7f0/6Nl7c1UflnTzVK'
+
+  - changeSet:
+      id: 006-seed-tbl-conference
+      author: roger-silva
+      changes:
+        - insert:
+            tableName: tbl_conference
+            columns:
+              - column:
+                  name: name
+                  value: Tech Summit 2026
+              - column:
+                  name: address
+                  value: Av. Paulista, 1000 - São Paulo, SP
+        - insert:
+            tableName: tbl_conference
+            columns:
+              - column:
+                  name: name
+                  value: Data Science Conference
+              - column:
+                  name: address
+                  value: Rua das Flores, 250 - Rio de Janeiro, RJ
+        - insert:
+            tableName: tbl_conference
+            columns:
+              - column:
+                  name: name
+                  value: AI & Innovation Forum
+              - column:
+                  name: address
+                  value: Praça da Liberdade, 45 - Belo Horizonte, MG
+
+  - changeSet:
+      id: 007-seed-tbl-session
+      author: roger-silva
+      changes:
+        - insert:
+            tableName: tbl_session
+            columns:
+              - column:
+                  name: title
+                  value: Introdução ao Machine Learning
+              - column:
+                  name: start_date
+                  valueDate: 2026-05-10
+              - column:
+                  name: start_time
+                  value: '09:00:00'
+              - column:
+                  name: conference_id
+                  valueNumeric: 1
+        - insert:
+            tableName: tbl_session
+            columns:
+              - column:
+                  name: title
+                  value: Tendências em Big Data
+              - column:
+                  name: start_date
+                  valueDate: 2026-05-10
+              - column:
+                  name: start_time
+                  value: '11:00:00'
+              - column:
+                  name: conference_id
+                  valueNumeric: 1
+        - insert:
+            tableName: tbl_session
+            columns:
+              - column:
+                  name: title
+                  value: Deep Learning Avançado
+              - column:
+                  name: start_date
+                  valueDate: 2026-06-15
+              - column:
+                  name: start_time
+                  value: '10:30:00'
+              - column:
+                  name: conference_id
+                  valueNumeric: 2
+        - insert:
+            tableName: tbl_session
+            columns:
+              - column:
+                  name: title
+                  value: Ética na Inteligência Artificial
+              - column:
+                  name: start_date
+                  valueDate: 2026-06-15
+              - column:
+                  name: start_time
+                  value: '14:00:00'
+              - column:
+                  name: conference_id
+                  valueNumeric: 2
+        - insert:
+            tableName: tbl_session
+            columns:
+              - column:
+                  name: title
+                  value: Startups e Inovação Tecnológica
+              - column:
+                  name: start_date
+                  valueDate: 2026-07-20
+              - column:
+                  name: start_time
+                  value: '09:30:00'
+              - column:
+                  name: conference_id
+                  valueNumeric: 3
+
+  - changeSet:
+      id: 008-seed-tbl-subscription
+      author: roger-silva
+      changes:
+        - insert:
+            tableName: tbl_subscription
+            columns:
+              - column:
+                  name: user_id
+                  valueNumeric: 1
+              - column:
+                  name: session_id
+                  valueNumeric: 1
+              - column:
+                  name: level
+                  valueNumeric: 1
+              - column:
+                  name: unique_id
+                  value: SUB-001-USER1
+        - insert:
+            tableName: tbl_subscription
+            columns:
+              - column:
+                  name: user_id
+                  valueNumeric: 1
+              - column:
+                  name: session_id
+                  valueNumeric: 2
+              - column:
+                  name: level
+                  valueNumeric: 2
+              - column:
+                  name: unique_id
+                  value: SUB-002-USER1
+        - insert:
+            tableName: tbl_subscription
+            columns:
+              - column:
+                  name: user_id
+                  valueNumeric: 2
+              - column:
+                  name: session_id
+                  valueNumeric: 3
+              - column:
+                  name: level
+                  valueNumeric: 1
+              - column:
+                  name: unique_id
+                  value: SUB-003-USER2
+        - insert:
+            tableName: tbl_subscription
+            columns:
+              - column:
+                  name: user_id
+                  valueNumeric: 3
+              - column:
+                  name: session_id
+                  valueNumeric: 4
+              - column:
+                  name: level
+                  valueNumeric: 3
+              - column:
+                  name: unique_id
+                  value: SUB-004-USER3
+        - insert:
+            tableName: tbl_subscription
+            columns:
+              - column:
+                  name: user_id
+                  valueNumeric: 2
+              - column:
+                  name: session_id
+                  valueNumeric: 5
+              - column:
+                  name: level
+                  valueNumeric: 2
+              - column:
+                  name: unique_id
+                  value: SUB-005-USER2
