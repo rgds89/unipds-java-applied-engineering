@@ -1,5 +1,6 @@
 package com.unipds.roger.silva.events.api.model;
 
+import com.unipds.roger.silva.events.api.dto.SessionRequestDTO;
 import jakarta.persistence.Column;
 import jakarta.persistence.Entity;
 import jakarta.persistence.GeneratedValue;
@@ -34,4 +35,8 @@ public class Session {
     @ManyToOne
     @JoinColumn(name = "conference_id")
     private Conference conference;
+
+    public static Session create(String title, Conference conference){
+        return new Session(null, title, LocalDate.now(), LocalDateTime.now(), conference);
+    }
 }

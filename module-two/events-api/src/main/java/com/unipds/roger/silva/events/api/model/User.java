@@ -1,5 +1,6 @@
 package com.unipds.roger.silva.events.api.model;
 
+import com.unipds.roger.silva.events.api.dto.UserRequestDTO;
 import jakarta.persistence.Column;
 import jakarta.persistence.Entity;
 import jakarta.persistence.GeneratedValue;
@@ -26,4 +27,8 @@ public class User {
     private String email;
     @Column(name = "user_password", length = 255, nullable = false)
     private String userPassword;
+
+    public static User create(String name, String email, String userPassword){
+        return new User(null, name, email, userPassword);
+    }
 }

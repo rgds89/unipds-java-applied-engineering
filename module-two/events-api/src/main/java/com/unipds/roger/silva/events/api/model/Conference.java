@@ -24,4 +24,8 @@ public class Conference {
     private String name;
     @Column(name = "address", length = 255)
     private String address;
+
+    public static Conference create(String name, String address){
+        return  new Conference(null, name, address);
+    }
 }
