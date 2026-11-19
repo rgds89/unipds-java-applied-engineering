@@ -31,4 +31,11 @@ public class User {
     public static User create(String name, String email, String userPassword){
         return new User(null, name, email, userPassword);
     }
+
+    public static User update(UserRequestDTO dto,User user){
+        user.setName(dto.name());
+        user.setEmail(dto.email());
+        user.setUserPassword(dto.userPassword());
+        return user;
+    }
 }

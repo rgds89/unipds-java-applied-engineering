@@ -9,6 +9,9 @@ import lombok.Data;
 import lombok.NoArgsConstructor;
 
 import java.time.LocalDateTime;
+import java.util.Random;
+import java.util.UUID;
+import java.util.random.RandomGenerator;
 
 @Entity
 @Table(name = "tbl_subscription")
@@ -24,5 +27,14 @@ public class Subscription {
     private LocalDateTime createdAt;
     @Column(name = "level")
     private int level;
+
+    public static Subscription create(User user, Session session){
+        return new Subscription(
+                SubscriptionId.create(user, session),
+                UUID.randomUUID().toString(),
+                LocalDateTime.now(),
+                RandomGenerator.getDefault().nextInt()
+        );
+    }
 
 }

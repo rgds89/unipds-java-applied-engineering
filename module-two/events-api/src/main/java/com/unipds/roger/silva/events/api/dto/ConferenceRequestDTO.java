@@ -1,4 +1,9 @@
 package com.unipds.roger.silva.events.api.dto;
 
-public record ConferenceRequestDTO(String name, String address) {
+import jakarta.validation.constraints.NotBlank;
+
+public record ConferenceRequestDTO(
+        @NotBlank(message = "Name cannot be blank")
+        String name,
+        String address) {
 }

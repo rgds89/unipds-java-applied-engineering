@@ -18,4 +18,8 @@ public class SubscriptionId {
     @ManyToOne
     @JoinColumn(name = "session_id")
     private Session session;
+
+    public static SubscriptionId create(User user, Session session) {
+        return new SubscriptionId(user, session);
+    }
 }

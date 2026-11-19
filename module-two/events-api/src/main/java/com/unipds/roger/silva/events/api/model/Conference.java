@@ -1,5 +1,6 @@
 package com.unipds.roger.silva.events.api.model;
 
+import com.unipds.roger.silva.events.api.dto.ConferenceRequestDTO;
 import jakarta.persistence.Column;
 import jakarta.persistence.Entity;
 import jakarta.persistence.GeneratedValue;
@@ -27,5 +28,11 @@ public class Conference {
 
     public static Conference create(String name, String address){
         return  new Conference(null, name, address);
+    }
+
+    public static Conference update(ConferenceRequestDTO dto, Conference conference){
+        conference.setName(dto.name());
+        conference.setAddress(dto.address() != null ? dto.address() : conference.getAddress());
+        return conference;
     }
 }
